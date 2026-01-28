@@ -33,24 +33,22 @@ async def generate(file: UploadFile = File(...)):
     # 2. Remove background
     fg = remove(img, session=None).convert("L")
 
-    # 3. Normalize contrast (VERY IMPORTANT)
+    # 3. Improve contrast
     fg = ImageOps.autocontrast(fg)
-
-    # 4. Slight blur to remove noise
     fg = fg.filter(ImageFilter.GaussianBlur(radius=1))
 
     fg_np = np.array(fg)
     h, w = fg_np.shape
 
-    # 5. Create white canvas
+    # 4. Prepare canvas
     canvas = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(canvas)
 
-    # 6. Load words
+    # 5. Load words
     with open("words.txt", "r", encoding="utf-8") as f:
         words = f.read().split()
 
-    # 7. Load font (Railway-safe)
+    # 6. Load fonts
     try:
         font_small = ImageFont.truetype("DejaVuSans.ttf", 9)
         font_big = ImageFont.truetype("DejaVuSans.ttf", 13)
@@ -59,13 +57,12 @@ async def generate(file: UploadFile = File(...)):
 
     word_i = 0
 
-    # 8. Row-based text drawing (KEY STEP)
+    # 7. Row-based drawing (FIXED)
     for y in range(0, h, 10):
         row = fg_np[y]
+        darkness = int(np.mean(row))
 
-        darkness = np.mean(row)
-
-        # Skip bright rows
+        # Skip mostly white rows
         if darkness > 210:
             continue
 
@@ -73,12 +70,16 @@ async def generate(file: UploadFile = File(...)):
         x = 0
 
         while x < w:
-            if row[x] < 180:  # only draw on dark pixels
+            xi = int(x)  # 🔑 CRITICAL FIX
+
+            if row[xi] < 180:
                 word = words[word_i % len(words)]
                 word_i += 1
 
-                draw.text((x, y), word, fill=(0, 0, 0), font=font)
-                x += draw.textlength(word, font=font) + 6
+                draw.text((xi, y), word, fill=(0, 0, 0), font=font)
+
+                word_width = int(draw.textlength(word, font=font))
+                x += word_width + 6
             else:
                 x += 10
 
