@@ -1,0 +1,70 @@
+html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Word Cloud Booth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont;
+      background: #ffffff;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    input[type=file] {
+      font-size: 18px;
+      margin: 20px 0;
+    }
+    button {
+      font-size: 20px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      background: #000;
+      color: #fff;
+    }
+    img {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Tap to Take Photo</h1>
+
+<input id="photo" type="file" accept="image/*" capture="environment">
+<br>
+<button onclick="upload()">Create Portrait</button>
+
+<img id="result"/>
+
+<script>
+async function upload() {
+  const fileInput = document.getElementById("photo");
+  if (!fileInput.files.length) return;
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  document.querySelector("h1").innerText = "Processing…";
+
+  const response = await fetch("/generate", {
+    method: "POST",
+    body: formData
+  });
+
+  const blob = await response.blob();
+  document.getElementById("result").src = URL.createObjectURL(blob);
+  document.querySelector("h1").innerText = "Done ✨";
+}
+</script>
+
+</body>
+</html>

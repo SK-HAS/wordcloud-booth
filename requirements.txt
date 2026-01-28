@@ -1,0 +1,8 @@
+txt
+fastapi
+uvicorn
+pillow
+wordcloud
+numpy
+rembg
+python-multipart
