@@ -4,8 +4,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse
 from rembg import remove
-from PIL import Image
-from wordcloud import WordCloud, ImageColorGenerator
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import uuid
 
@@ -25,49 +24,48 @@ def home():
 def health():
     return {"status": "ok"}
 
+
 @app.post("/generate")
 async def generate(file: UploadFile = File(...)):
     # Load image
-    input_image = Image.open(file.file).convert("RGB")
-    input_image.thumbnail((900, 900))
+    img = Image.open(file.file).convert("RGB")
+    img.thumbnail((900, 900))
 
-    # Remove background
-    no_bg = remove(input_image, session=None).convert("RGBA")
+    # Remove background and convert to grayscale
+    fg = remove(img, session=None).convert("L")
 
-    # Convert to grayscale (this carries facial details)
-    gray = no_bg.convert("L")
+    # Increase contrast (face = black, background = white)
+    fg = fg.point(lambda x: 0 if x < 120 else 255)
 
-    # Convert grayscale to numpy
-    gray_array = np.array(gray)
+    fg_np = np.array(fg)
+    width, height = fg.size
 
-    # Invert grayscale: dark areas get more words
-    mask_array = 255 - gray_array
+    # Create white canvas
+    canvas = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(canvas)
 
-    # Threshold background to pure white
-    mask_array[gray_array < 10] = 255
-
+    # Load words
     with open("words.txt", "r", encoding="utf-8") as f:
-        text = f.read()
+        words = f.read().split()
 
-    wc = WordCloud(
-        background_color="white",
-        max_words=3000,
-        mask=mask_array,
-        contour_width=0,
-        collocations=False,
-        prefer_horizontal=0.85,
-        min_font_size=6,
-        max_font_size=120,
-        relative_scaling=0.6
-    )
+    # Load font (Railway safe)
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 10)
+    except:
+        font = ImageFont.load_default()
 
-    wc.generate(text)
+    word_index = 0
+
+    # Draw words ONLY on dark pixels
+    for y in range(0, height, 10):
+        for x in range(0, width, 60):
+            if fg_np[y, x] == 0:
+                word = words[word_index % len(words)]
+                word_index += 1
+                draw.text((x, y), word, fill=(0, 0, 0), font=font)
 
     filename = f"{uuid.uuid4()}.png"
     path = os.path.join(OUTPUT_DIR, filename)
-    wc.to_file(path)
+    canvas.save(path)
 
     return FileResponse(path, media_type="image/png")
-
-
-
