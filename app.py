@@ -4,9 +4,8 @@ os.environ["OMP_NUM_THREADS"] = "1"
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse
 from rembg import remove
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 import numpy as np
-import cv2
 import uuid
 
 app = FastAPI()
@@ -27,7 +26,6 @@ def health():
 
 @app.post("/generate")
 async def generate(file: UploadFile = File(...)):
-
     # 1. Load image
     img = Image.open(file.file).convert("RGB")
     img.thumbnail((900, 900))
@@ -35,64 +33,54 @@ async def generate(file: UploadFile = File(...)):
     # 2. Remove background
     fg = remove(img, session=None).convert("L")
 
-    # 3. Convert to OpenCV
-    gray = np.array(fg)
+    # 3. Normalize contrast (VERY IMPORTANT)
+    fg = ImageOps.autocontrast(fg)
 
-    # 4. Adaptive threshold (THIS IS KEY)
-    bw = cv2.adaptiveThreshold(
-        gray,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        31,
-        5
-    )
+    # 4. Slight blur to remove noise
+    fg = fg.filter(ImageFilter.GaussianBlur(radius=1))
 
-    # 5. Edge detection (anchors face)
-    edges = cv2.Canny(gray, 80, 160)
+    fg_np = np.array(fg)
+    h, w = fg_np.shape
 
-    # 6. Combine edges + darkness
-    portrait_map = np.minimum(bw, 255 - edges)
-
-    h, w = portrait_map.shape
-
-    # 7. Prepare canvas
+    # 5. Create white canvas
     canvas = Image.new("RGB", (w, h), "white")
     draw = ImageDraw.Draw(canvas)
 
-    # 8. Load words
+    # 6. Load words
     with open("words.txt", "r", encoding="utf-8") as f:
         words = f.read().split()
 
-    # 9. Fonts
+    # 7. Load font (Railway-safe)
     try:
-        small = ImageFont.truetype("DejaVuSans.ttf", 8)
-        medium = ImageFont.truetype("DejaVuSans.ttf", 12)
+        font_small = ImageFont.truetype("DejaVuSans.ttf", 9)
+        font_big = ImageFont.truetype("DejaVuSans.ttf", 13)
     except:
-        small = medium = ImageFont.load_default()
+        font_small = font_big = ImageFont.load_default()
 
     word_i = 0
 
-    # 10. Row-wise drawing (CRITICAL)
-    for y in range(0, h, 9):
-        darkness = np.mean(portrait_map[y:y+3, :])
+    # 8. Row-based text drawing (KEY STEP)
+    for y in range(0, h, 10):
+        row = fg_np[y]
 
-        # Skip mostly white rows
-        if darkness > 240:
+        darkness = np.mean(row)
+
+        # Skip bright rows
+        if darkness > 210:
             continue
 
-        font = small if darkness < 180 else medium
+        font = font_small if darkness < 150 else font_big
         x = 0
 
         while x < w:
-            if portrait_map[y, x] < 200:
+            if row[x] < 180:  # only draw on dark pixels
                 word = words[word_i % len(words)]
                 word_i += 1
 
                 draw.text((x, y), word, fill=(0, 0, 0), font=font)
                 x += draw.textlength(word, font=font) + 6
             else:
-                x += 12
+                x += 10
 
     filename = f"{uuid.uuid4()}.png"
     path = os.path.join(OUTPUT_DIR, filename)
