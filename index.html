@@ -1,51 +1,45 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Word Cloud Booth</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>Word Portrait Booth</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
-      background: #ffffff;
-      text-align: center;
-      padding: 24px;
-      margin: 0;
-    }
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    background: white;
+  }
 
-    h1 {
-      font-size: 22px;
-      margin-bottom: 20px;
-    }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
 
-    input[type=file] {
-      font-size: 18px;
-      margin: 16px 0;
-    }
+  input[type=file] {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
 
-    button {
-      font-size: 20px;
-      padding: 14px 28px;
-      border: none;
-      border-radius: 12px;
-      background: #000;
-      color: #fff;
-      cursor: pointer;
-    }
+  button {
+    font-size: 20px;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 12px;
+    background: black;
+    color: white;
+  }
 
-    button:disabled {
-      opacity: 0.6;
-    }
-
-    img {
-      display: none;
-      margin: 24px auto;
-      max-width: 100%;
-      height: auto;
-      border-radius: 12px;
-    }
-  </style>
+  img {
+    display: none;
+    margin: 24px auto;
+    max-width: 100%;
+    height: auto;
+  }
+</style>
 </head>
 
 <body>
@@ -61,13 +55,13 @@
 
 <script>
 async function upload() {
-  const fileInput = document.getElementById("photo");
+  const file = document.getElementById("photo").files[0];
   const status = document.getElementById("status");
   const btn = document.getElementById("btn");
   const img = document.getElementById("result");
 
-  if (!fileInput.files.length) {
-    alert("Please take a photo first");
+  if (!file) {
+    alert("Please take a photo");
     return;
   }
 
@@ -75,33 +69,29 @@ async function upload() {
   status.innerText = "Processing…";
 
   const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
+  formData.append("file", file);
 
   try {
-    const response = await fetch("/generate", {
+    const res = await fetch("/generate", {
       method: "POST",
       body: formData
     });
 
-    if (!response.ok) {
-      throw new Error("Server error");
-    }
-
-    const blob = await response.blob();
-
+    const blob = await res.blob();
     img.src = URL.createObjectURL(blob);
     img.style.display = "block";
     img.scrollIntoView({ behavior: "smooth" });
 
     status.innerText = "Done ✨";
-  } catch (e) {
-    alert("Something went wrong. Please try again.");
-    status.innerText = "Tap to Take Photo";
-  } finally {
-    btn.disabled = false;
+  } catch {
+    status.innerText = "Try again";
   }
+
+  btn.disabled = false;
 }
 </script>
 
 </body>
 </html>
+
+
