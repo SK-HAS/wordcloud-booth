@@ -1,8 +1,8 @@
-txt
 fastapi
 uvicorn
 pillow
 wordcloud
 numpy
-rembg
+rembg[cpu]
+onnxruntime
 python-multipart
