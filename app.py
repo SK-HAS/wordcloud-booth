@@ -1,4 +1,3 @@
-python
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse
 from rembg import remove
@@ -48,5 +47,6 @@ async def generate(file: UploadFile = File(...)):
     filename = f"{uuid.uuid4()}.png"
     path = os.path.join(OUTPUT_DIR, filename)
     wc.to_file(path)
+
 
     return FileResponse(path, media_type="image/png")
