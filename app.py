@@ -25,18 +25,16 @@ def home():
 def health():
     return {"status": "ok"}
 
-
 @app.post("/generate")
 async def generate(file: UploadFile = File(...)):
     input_image = Image.open(file.file).convert("RGB")
     input_image.thumbnail((1024, 1024))
 
-    no_bg = remove(input_image, session=None)
-    mask = no_bg.split()[-1]
-    mask = mask.resize(input_image.size)
+    no_bg = remove(input_image, session=None).convert("RGBA")
+    alpha = np.array(no_bg.split()[3])
 
-    mask_array = np.array(mask)
-    mask_array = np.where(mask_array > 10, 255, 0)
+    mask_array = np.where(alpha > 20, 255, 0).astype(np.uint8)
+    mask_array = 255 - mask_array  # invert for WordCloud
 
     with open("words.txt", "r", encoding="utf-8") as f:
         text = f.read()
@@ -46,7 +44,7 @@ async def generate(file: UploadFile = File(...)):
         max_words=1200,
         mask=mask_array,
         collocations=False,
-        prefer_horizontal=1.0
+        prefer_horizontal=0.9
     )
 
     wc.generate(text)
@@ -57,4 +55,5 @@ async def generate(file: UploadFile = File(...)):
     wc.to_file(path)
 
     return FileResponse(path, media_type="image/png")
+
 
